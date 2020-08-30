@@ -1,5 +1,4 @@
-﻿using DoubleMathCaptchaUtility;
-using FaucetCollector.Script;
+﻿using FaucetCollector.Script;
 using OpenQA.Selenium;
 using System;
 using System.Collections.Generic;
@@ -7,8 +6,8 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-//css_ref DoubleMathCaptchaUtility.dll
-//css_inc RecaptchaUtilities
+//css_ref FaucetCollector.Utilities
+//css_ref FaucetCollector.Captcha
 namespace Adbtc
 {
     public class TemplateScript : FaucetScript
@@ -33,7 +32,7 @@ namespace Adbtc
             }
         }
 
-        private DoubleMathCaptchaCuter cuter;
+        private FaucetCollector.Captcha.DoubleMathCaptchaCuter cuter;
         public override void Start()
         {
 
@@ -48,7 +47,7 @@ namespace Adbtc
 
         public override int DoInit ( )
         {
-            cuter=new DoubleMathCaptchaCuter ( true );
+            cuter=new FaucetCollector.Captcha.DoubleMathCaptchaCuter ( true );
             return base.DoInit ( );
         }
         public override bool IsLoggedIn()
@@ -96,7 +95,7 @@ namespace Adbtc
                     return;
                 }
 
-                RecaptchaUtility recaptchaUtility=new RecaptchaUtility(this);
+                FaucetCollector.Captcha.RecaptchaUtility recaptchaUtility=new FaucetCollector.Captcha.RecaptchaUtility(this);
                 recaptchaUtility.DoSolve ( );
                 Wait ( 1 );
 
@@ -113,20 +112,31 @@ namespace Adbtc
             var PasswordBox = ElementByXPath("//input[@id='password']");
             if (!IsVisible(PasswordBox))
             {
-                return Fail("Fail login");
+                return Fail( "Fail login Password box not visible" );
             }
 
-            int result = DoSolveCaptcha();
+            int result = SolveCapt();
             if (result > 0)
             {
                 return Fail("Fail Solving captcha");
             }
+            //Captcha probably changed and site refreshed so we need to update the elements and check if it's visible
 
-            SetText(AddressBox, GetSetting("User"));
+            AddressBox=ElementByXPath ( "//input[@id='email']" );
+            if ( !IsVisible ( AddressBox ) )
+            {
+                return Fail ( "Fail To login address box is not visible  after solve login captcha" );
+            }
+            PasswordBox = ElementByXPath("//input[@id='password']");
+            if ( !IsVisible ( PasswordBox ) )
+            {
+                return Fail ( "Fail login Password box not visible after solve login captcha" );
+            }
+            SetText (AddressBox, GetSetting("User"));
             SetText(PasswordBox, GetPassword("Pass"));
             Wait(1);
 
-            var ButtonLogin = ElementByXPath("//input[@class='btn-large light-blue darken-4']");
+            var ButtonLogin = ElementByXPath("//input[@class='btn light-blue darken-4']");
             if (!IsVisible(ButtonLogin))
             {
                 return Fail("Fail, button login is not visible");
@@ -175,7 +185,7 @@ namespace Adbtc
                         {
                             if ( cuter==null )
                             {
-                                cuter=new DoubleMathCaptchaCuter ( true);
+                                cuter=new FaucetCollector.Captcha.DoubleMathCaptchaCuter ( true);
                             }
 
 
@@ -321,7 +331,7 @@ namespace Adbtc
                     //We  are ready to see the ad
                     else
                     {
-                        var bt = ElementByXPath("//*[contains(@class,'col') and contains(@class,'nopad offset')]//a[contains(@class,'btn')]");
+                        var bt = ElementByXPath("//a[contains(@class,'pulse animated valign-wrapper')]");
                         if (IsVisible(bt))
                         {
                             try
@@ -529,7 +539,7 @@ namespace Adbtc
         {
             get
             {
-                return !( VisibleMath==UseMath );
+                return (!( VisibleMath==UseMath ) || ElementByXPath( "//li[@class='selected']//span[contains(text(),'hCaptcha')]")!=null);
             }
         }
         private bool VisibleMath
@@ -540,6 +550,14 @@ namespace Adbtc
             }
         }
       
+        public bool CheckConditions ( IWebElement element)
+        {
+            if ( element==null )
+            {
+                return false;
+            }
+            return !element.Text.ToLower().Contains ( "hcaptcha" );
+        }
         public int SolveCapt ( )
         {
             var SwitchCaptcha = NeedChange?ElementByXPath("//input[contains(@class,'select-dropdown')]"):null;
@@ -547,8 +565,10 @@ namespace Adbtc
             {
                 Click ( SwitchCaptcha );
                 Wait ( 1 );
-
-                var SelectCaptcha=ElementByXPath("//li[not(contains(@class,'selected')) and contains(@id,'select')]");
+                FaucetCollector.Utilities.HtmlFilter.HtmlElement filter =new FaucetCollector.Utilities.HtmlFilter.HtmlElement();
+               
+                
+                var SelectCaptcha=ElementsByXPath("//li[not(contains(@class,'selected')) and contains(@id,'select')]").FirstOrDefault(x=>CheckConditions(filter.GetFirstChild(x,this))) ;
                 if ( SelectCaptcha!=null )
                 {
                     Click ( SelectCaptcha );

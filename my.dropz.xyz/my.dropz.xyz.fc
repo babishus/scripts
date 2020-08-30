@@ -1,7 +1,7 @@
 
 //==================//
 //script Written by: ••AviramDayan•• 03/03/2020 23:50PM - Version 1
-//Last Update: 08/03/2020 16:20PM - Version 3
+//Last Update: 17/04/2020 07:15PM - Version 11
 //==================//
 
 using System;
@@ -28,13 +28,15 @@ public class mydropzxyz : FaucetScript
                 new FaucetSetting(){Name="Email",Display="Email",Type=EditorType.TextBox,Required=true},
                 new FaucetSetting(){Name="Password",Display="Password",Type=EditorType.Password,Required=true},
                 
+                new FaucetSetting(){Name="SetWallet",Display="SetWallet - ON/OFF - the default is on",Type=EditorType.CheckBox,Default=true},		
+
 				new FaucetSetting(){Name="WalletAdress",Display="WalletAdress xrp",Type=EditorType.TextBox,Required=true},
 				new FaucetSetting(){Name="DestinationTag",Display="Destination Tag xrp",Type=EditorType.TextBox,Required=true},
  			
-                new FaucetSetting(){Name="FaucetClaim",Display="FaucetClaim",Type=EditorType.CheckBox,Default=true},		
-                new FaucetSetting(){Name="AutoSurfAds",Display="AutoSurfAds",Type=EditorType.CheckBox,Default=true},
+                new FaucetSetting(){Name="FaucetClaim",Display="FaucetClaim - ON/OFF - the default is off",Type=EditorType.CheckBox,Default=false},		
+                new FaucetSetting(){Name="AutoSurfAds",Display="AutoSurfAds - ON/OFF",Type=EditorType.CheckBox,Default=true},
 
-                new FaucetSetting(){Name="AutoWithdraw",Display="AutoWithdraw",Type=EditorType.CheckBox,Default=false},
+                new FaucetSetting(){Name="AutoWithdraw",Display="AutoWithdraw - ON/OFF",Type=EditorType.CheckBox,Default=true},
                 new FaucetSetting() { Name = "LimitWithdraw", Display = "LimitWithdraw", Type = EditorType.TextBox, Default = 9000 },
 
 			
@@ -138,31 +140,18 @@ public class mydropzxyz : FaucetScript
         Wait();		
         Wait(2);
       
-        var Email_VAR = ElementByXPath("//input[@id='email']");      
-        if (IsVisible(Email_VAR))
-        {
-         SetText(Email_VAR, GetSetting("Email"));
-        }
-        
-        Wait(2);
+        Login_Elements_Function();
 
-        var Password_VAR = ElementByXPath("//input[@id='password']");      
-        if (IsVisible(Password_VAR))
+        var ErrorMessage = ElementByXPath("//h2[contains(text(),'Oops')]");  
+        if (IsVisible(ErrorMessage))
         {
-         SetText(Password_VAR, GetPassword("Password"));
-        }
-
-        Wait(2);
-		
-        var ButtonLog = ElementByXPath("//button[@type='submit' and @id='signin_bt']");  
-        if (IsVisible(ButtonLog))
-        {
-         Click(ButtonLog);
-        }
-        
-        Wait(2);
-        
-        Recaptcha_Function (); //call
+	     Log("something wrong - your info is wrong or your account is not activate ");
+		 Wait(2);	
+         Driver.Navigate().Refresh();
+         Login_Elements_Function();
+        } 
+       
+        Captcha_Function (); //call if apper invisible recaptcha after you click on "login button"
         
         Wait();			
 
@@ -211,8 +200,6 @@ public class mydropzxyz : FaucetScript
     if(ad)
 	{
         ad=false; //solve the problem in start - after he return to script again
-        //return GetWaitSetting();  
-
         return GetWaitSetting();  
 		
     }	//end ad
@@ -268,8 +255,14 @@ public class mydropzxyz : FaucetScript
   public override int DoSolveFaucet()
   {
 
-        SetWallet_Function(); //call	
-
+      //=============//
+      //SetWallet
+      //=============//
+      if (GetBoolSetting("SetWallet"))
+      {
+       SetWallet_Function(); //call	
+	  }
+      //=============//
 
       //=============//
       //AutoSurfAds
@@ -280,12 +273,24 @@ public class mydropzxyz : FaucetScript
 		   GoToUrl("https://my.dropz.xyz/site-friends/");
            Log("AutoSurfAds");	
            Wait();	
-	       Wait(2);	
-			
-           var AutoSurf_Check = ElementByXPath("//i[@class='fa fa-play'] | //div[@id='adcopy-puzzle-image'] | //iframe[contains(@src,'recaptcha/api2')]");
+	       Wait(7);	
+
+           var Balance_Check = ElementByXPath("//div[contains(@class,'box-body')]//small[contains(text(),'having 10K Drops')]");
+	       if (IsVisible(Balance_Check))
+	       {
+			  Log("AutoWithdraw_Function - required to withdraw above 10k - so we do that :) ");
+			  AutoWithdraw_Function(); //call 
+
+		      GoToUrl("https://my.dropz.xyz/site-friends/");
+              Log("AutoSurfAds - go again after withdraw");	
+              Wait();	
+	          Wait(7);	
+		   }
+
+           var AutoSurf_Check = ElementByXPath("//a[@style]/i | //a[@class and @id]/i | //a[contains(@class,'btn-app')]/i | //a[contains(@class,'btn-success')]/i | //a[contains(@class,'btn-default')]/i | //a[contains(text(),'Visit Advertiser')] | //i[contains(@class,'fa fa-arrow-right')] | //i[contains(@class,'fa-chevron-right')] | //div[@id='adcopy-puzzle-image'] | //iframe[contains(@src,'recaptcha/api2')]"); 
 	       if (IsVisible(AutoSurf_Check))
 	       {
-			   
+			  
 		     Log("AutoSurfAds - Available");
              var TimeToWaitForBreak = DateTime.Now.AddSeconds(65);
              while (true)
@@ -293,7 +298,7 @@ public class mydropzxyz : FaucetScript
 			   
                CheckForPopupsEnabled = false;
 			   
-               var ClaimNow_Available = ElementByXPath("//i[@class='fa fa-play']");
+               var ClaimNow_Available = ElementByXPath("//a[@style]/i | //a[@class and @id]/i | //a[contains(@class,'btn-app')]/i | //a[contains(@class,'btn-success')]/i | //a[contains(@class,'btn-default')]/i | //a[contains(text(),'Visit Advertiser')] | //i[contains(@class,'fa fa-arrow-right')] | //i[contains(@class,'fa-chevron-right')] | //div[@id='adcopy-puzzle-image'] | //iframe[contains(@src,'recaptcha/api2')]"); 
 	           if (IsVisible(ClaimNow_Available))
 	           {
 			   Click(ClaimNow_Available);
@@ -302,9 +307,9 @@ public class mydropzxyz : FaucetScript
                var Captcha_Available = ElementByXPath("//div[@id='adcopy-puzzle-image'] | //iframe[contains(@src,'recaptcha/api2')]");
 	           if (IsVisible(Captcha_Available))
 	           {
-			   Recaptcha_Function(); //call
+			   Captcha_Function(); //call
 			   Wait();
-               var FaucetButton = ElementByXPath("//input[@type='submit' and @value='Submit']");
+               var FaucetButton = ElementByXPath("//button[contains(text(),'Submit')] | //button[contains(text(),'submit')]");
                Click(FaucetButton);
 			   Wait(2);
 			   Driver.Navigate().Refresh(); //refresh page
@@ -312,13 +317,13 @@ public class mydropzxyz : FaucetScript
 			   
                Driver.SwitchTo().Window(Driver.WindowHandles[0]);
 			   
-               var ButtonToWait = ElementByXPath("//a[@class='btn btn-app' and contains(text(),'Please wait')]");
+               var ButtonToWait = ElementByXPath("//a[contains(text(),'wait')] | //a[contains(text(),'Wait')]");
                while (IsVisible(ButtonToWait))
                {
 				  Wait();
 				  Log("wait");
 
-                  if (!IsVisible(ElementByXPath ("//a[@class='btn btn-app' and contains(text(),'Please wait')]") )) 
+                  if (!IsVisible(ElementByXPath ("//a[contains(text(),'wait')] | //a[contains(text(),'Wait')]") )) 
 	              {
 				  Log("AutoSurf - Success");
 				  ClaimSuccess(); //Success
@@ -334,7 +339,7 @@ public class mydropzxyz : FaucetScript
                   }
 			   }	  		
 			   
-               if (!IsVisible(ElementByXPath ("//i[@class='fa fa-play']") )) 
+               if (!IsVisible(ElementByXPath ("//a[@style]/i | //a[@class and @id]/i | //a[contains(@class,'btn-app')]/i | //a[contains(@class,'btn-success')]/i | //a[contains(@class,'btn-default')]/i | //a[contains(text(),'Visit Advertiser')] | //i[contains(@class,'fa fa-arrow-right')] | //i[contains(@class,'fa-chevron-right')] ") )) 
 	           {
 		         Log("AutoSurfAds - break - not Available");
                  break; //after break the while  
@@ -352,6 +357,7 @@ public class mydropzxyz : FaucetScript
          } //end AutoSurfAds
       //=============//
 		
+	  
 	  
       //=============//
       //FaucetClaim
@@ -375,7 +381,7 @@ public class mydropzxyz : FaucetScript
  
             Wait(7);
 			
-            Recaptcha_Function (); //call
+            Captcha_Function (); //call
 			
             Wait(2); 
 			
@@ -415,37 +421,14 @@ public class mydropzxyz : FaucetScript
       //=============//
          if (GetBoolSetting("AutoWithdraw"))
          {
-			 
-           GoToUrl("https://my.dropz.xyz/account/");
-		   Wait(2);
-		   
-           var balance = ElementByXPath("//b[@id='display_pending_drops']");
-           string BalanceSTRING = balance.Text.Trim().Replace(",", "").Split('.')[0];
-           int BalanceINT = Convert.ToInt32(BalanceSTRING);
-   
-           int MyAmount;
-           Int32.TryParse(GetSetting("LimitWithdraw"), out MyAmount);
-   
-           if (BalanceINT < MyAmount) // - 3000
-           {
-               Log("AutoWithdraw - Under <");
-              //do all stuff
-           }
-   
-           if (BalanceINT > MyAmount) // + 3000
-           {
-               Log("AutoWithdraw - Above >");
-               var WithdrawButton = ElementByXPath("//button[@id='payout_bt']");
-			   Click(WithdrawButton);
-               Wait(7);			   
-			   Log("Withdraw success");
-           }
+			 Log("AutoWithdraw - Active");
+			 AutoWithdraw_Function(); //call
+
          } //end AutoWithdraw
       //=============//
 
-
 	 return GetWaitSetting();
-	
+
   //This faucet has nothing to do here. We will let Faucet Collector handle it.
   return base.DoSolveFaucet();
   }
@@ -472,12 +455,97 @@ public class mydropzxyz : FaucetScript
         return base.CheckFaucetResult();
     }
 
+
+
+        //=================//
+       //Login_Elements_Function
+        //=================//
+        public int Login_Elements_Function()
+        {
+			
+           var Email_VAR = ElementByXPath("//div[@class='box box-info']//input[@type='email']");      
+           if (IsVisible(Email_VAR))
+           {
+            SetText(Email_VAR, GetSetting("Email"));
+           }
+           
+           Wait(2);
+		   
+           var Password_VAR = ElementByXPath("//div[@class='box box-info']//input[@type='password']");      
+           if (IsVisible(Password_VAR))
+           {
+            SetText(Password_VAR, GetPassword("Password"));
+           }
+		   
+           Wait(2);
+
+           Captcha_Function(); //call
+
+           Wait();			
+	
+           var ButtonLog = ElementByXPath("//div[@class='box box-info']//button[@type='submit']");  
+           if (IsVisible(ButtonLog))
+           {
+            Click(ButtonLog);
+           }
+
+           Driver.Navigate().Refresh();
+
+           Wait(2);
+
+     	return 0;
+        }//end Login_Elements_Function
+        //=================//	
+	
+
+
+        //=================//
+       //AutoWithdraw_Function
+        //=================//
+        public int AutoWithdraw_Function()
+        {
+
+		   Log("AutoWithdraw_Function - check");
+
+           GoToUrl("https://my.dropz.xyz/account/");
+		   Wait(2);
+		   
+           var balance = ElementByXPath("//b[@id='display_pending_drops']");
+           string BalanceSTRING = balance.Text.Trim().Replace(",", "").Split('.')[0];
+           int BalanceINT = Convert.ToInt32(BalanceSTRING);
+   
+           int MyAmount;
+           Int32.TryParse(GetSetting("LimitWithdraw"), out MyAmount);
+   
+           if (BalanceINT < MyAmount) // - 3000
+           {
+               Log("AutoWithdraw - Under < not good ");
+              //do all stuff
+           }
+   
+           if (BalanceINT > MyAmount) // + 3000
+           {
+               Log("AutoWithdraw - Above > good we do stuff");
+               var WithdrawButton = ElementByXPath("//button[@id='payout_bt']");
+			   Click(WithdrawButton);
+               Wait(7);			   
+			   Log("Withdraw success");
+           }
+			
+		return 0;
+        }//end AutoWithdraw_Function
+        //=================//	
+
+
 	
         //=================//
        //SetWallet_Function
         //=================//
         public int SetWallet_Function()
         {
+
+		  Log("SetWallet_Function - check");
+		  
 		  GoToUrl("https://my.dropz.xyz/account/");
 		
           var AdressAndDestinationTagCheck = ElementByXPath("//table[@class='table table-condensed']//b[contains(text(),'Specified')]");
@@ -509,24 +577,55 @@ public class mydropzxyz : FaucetScript
 
 
         //=================//
-       //Recaptcha_Function
+       //Captcha_Function
         //=================//
-        public int Recaptcha_Function()
+        public int Captcha_Function()
         {
-
-          var RecaptchaOpen_Iframe = ElementByXPath ("//iframe[contains(@src,'recaptcha/api2')]");
-          var SolveMedia_VAR = ElementByXPath ("//div[@id='adcopy-puzzle-image']");
-          if (IsVisible(RecaptchaOpen_Iframe) || IsVisible(SolveMedia_VAR) )
+		
+          if (IsVisible(ElementByXPath ("//div[contains(@class,'box-info')]//img") ))
 		  {
+			Log("solve - ImageCap");
+            //solve Captcha X2 XPath (1 = captcha image | 2 = input text )
+            var ImageCap_VAR = DoSolveImageCaptcha(ElementByXPath("//div[contains(@class,'box-info')]//img"),ElementByXPath("//div[contains(@class,'box-info')]//input[@placeholder='Captcha']")); 
+
+            if (ImageCap_VAR > 0)
+            {
+               return Fail("fail not solve"); //return to solve again - if something wrong
+            }
+			
+		  } // end ImageCap
+
+
+          if (IsVisible(ElementByXPath ("//div[contains(@id,'adcopy-puzzle-image')]/img") ))
+		  {
+			Log("solve - SolveMedia_VAR");
+            //solve Captcha X2 XPath (1 = captcha image | 2 = input text )
+            var SolveMedia_VAR = DoSolveImageCaptcha(ElementByXPath("//div[contains(@id,'adcopy-puzzle-image')]/img"),ElementByXPath("//input[contains(@id,'adcopy_response')]")); 
+
+            if (SolveMedia_VAR > 0)
+            {
+               return Fail("fail not solve"); //return to solve again - if something wrong
+            }
+			
+		  } // end SolveMedia
+
+
+          //Recaptcha	  
+          var RecaptchaOpen_Iframe = ElementByXPath ("//iframe[contains(@src,'recaptcha/api2/anchor')]");
+          if (IsVisible(RecaptchaOpen_Iframe) )
+		  {
+			Log("solve - Recaptcha");
+
             //SolveCaptcha if apper
-            var result = base.DoSolveCaptcha();
-            if (result > 0)
+            var Recap = base.DoSolveCaptcha();
+            if (Recap > 0)
             {
                 return Fail("Fail solving captcha");
             }
             RecaptchaUtility utility = new RecaptchaUtility(this);
             utility.DoSolve();
-		  }
+			
+		  }//end RecaptchaOpen_Iframe
 
      	return 0;
         }//end VOID_Template_Function

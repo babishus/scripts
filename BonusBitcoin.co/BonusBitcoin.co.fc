@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using FaucetCollector.Script;
 using OpenQA.Selenium;
-
+//css_ref FaucetCollector.Utilities
 
 public class BonusBitcoinScript : FaucetScript
 {
@@ -18,12 +18,14 @@ public class BonusBitcoinScript : FaucetScript
             {
                 //We have a setting to get the email address used for bonusbitcoin
                 new FaucetSetting() { Name = "Email", Display = "Email", Type = EditorType.TextBox, Required = true },
+                new FaucetSetting(){Name="Adblock",Display="Use code adblock",Type=EditorType.CheckBox,Default=true},
                 //And we also need the password
                 new FaucetSetting() { Name = "Password", Display = "Password", Type = EditorType.Password, Required = true },
-                new FaucetSetting(){Name="SwitchC",Display="SwitchCaptcha is the other is not visible",Type=EditorType.CheckBox,Default=true},
+                new FaucetSetting(){Name="SwitchC",Display="SwitchCaptcha if the other is not visible",Type=EditorType.CheckBox,Default=true},
 
                 //Option to use SolveMedia or reCAPTCHA
                 new FaucetSetting() { Name = "UseSolveMedia", Display = "Use SolveMedia (instead of reCAPTCHA)", Type = EditorType.CheckBox, Default = true },
+                 new FaucetSetting(){Name="SolveMediaRetry", Display="Do three SolveMedia attempts when failed to answer",Type=EditorType.CheckBox,Default=true},
                 //Option to select the claim amount - random or average
                 new FaucetSetting() { Name = "ClaimAverage", Display = "Receive the average claim amount (instead of random)", Type = EditorType.CheckBox }
             };
@@ -59,58 +61,69 @@ public class BonusBitcoinScript : FaucetScript
         //Let Faucet Collector start up everything
         base.Start();
     }
-
-    public int SolveCapt()
+    public FaucetCollector.Utilities.Adblock Adblock { get; set; }
+    private void DoBlock( )
+    {
+        if ( GetBoolSetting("Adblock") )
+        {
+            Adblock.DestroyAds( );
+        }
+    }
+    public void RefreshSolvemedia ( )
+    {
+        ExecuteScript ( "ACPuzzle.reload();" );
+    }
+    public int SolveCapt ( )
     {
         var XPathAdcopyRefresh = "//a[@id='adcopy-link-refresh']";
+
         int tries = 0;
         bool FirstTime = true;
-        while ((IsVisible(ElementByXPath("//input[@id='adcopy_response']|//input[@name='adcopy_response']")) && tries < 3 && !OverriteSolvemedia) || FirstTime)
+        while ( ( IsVisible ( ElementByXPath ( "//input[@id='adcopy_response']|//input[@name='adcopy_response']" ) )&&tries<3&&!OverriteSolvemedia&&GetBoolSetting ( "SolveMediaRetry" ) )||FirstTime )
         {
-            FirstTime = false;
+            FirstTime=false;
             var result = DoSolveCaptcha();
-            if (result > 0 && result != 9999)
+            if ( result>0&&result!=9999 )
             {
                 var AdcopyRefresh = ElementByXPath(XPathAdcopyRefresh);
-                if (IsVisible(AdcopyRefresh))
+                if ( IsVisible ( AdcopyRefresh ) )
                 {
-                    Click(AdcopyRefresh);
-                    Wait(2);
+                    RefreshSolvemedia ( );
+                    Wait ( 2 );
                 }
                 tries++;
                 continue;
             }
 
-            if ((Context.CaptchaResult.Result.Length <= 3 || Context.CaptchaResult.Result == "7775") && result != 9999)
+            if ( ( Context.CaptchaResult.Result.Length<=3||Context.CaptchaResult.Result=="7775" )&&result!=9999 )
             {
                 var AdcopyRefresh = ElementByXPath(XPathAdcopyRefresh);
-                if (IsVisible(AdcopyRefresh))
+                if ( IsVisible ( AdcopyRefresh ) )
                 {
-                    Click(AdcopyRefresh);
-                    Wait(3);
+                    RefreshSolvemedia ( );
+                    Wait ( 3 );
                 }
                 tries++;
 
                 continue;
             }
 
-            return result != 9999 ? result : 0;
+            return result!=9999 ? result : 0;
         }
-        if (tries >= 3 && GetBoolSetting("SwitchC"))
+        if ( tries>=3&&GetBoolSetting ( "SwitchC" ) )
         {
 
-            OverriteSolvemedia = true;
+            OverriteSolvemedia=true;
         }
 
 
-        return DoSolveCaptcha();
+        return DoSolveCaptcha ( );
     }
     private bool OverriteSolvemedia { get; set; }
-    public override int DoInit()
+    public override int DoInit( )
     {
-
-
-        return base.DoInit();
+        Adblock=new FaucetCollector.Utilities.Adblock(this);
+        return base.DoInit( );
     }
     /// <summary>
     /// This method gets called after the Start method, here you need to return if we are logged in or not.
@@ -129,6 +142,7 @@ public class BonusBitcoinScript : FaucetScript
     /// </summary>
     public override int BeforeLogin()
     {
+        DoBlock( );
         //Hide the cookie banner
         var banner = ElementByXPath("//div[contains(@class, 'cc_banner-wrapper')]");
         if (banner != null)
@@ -214,6 +228,7 @@ public class BonusBitcoinScript : FaucetScript
     public override int GetFaucetWaitTime()
     {
         Wait(4, 5);
+        DoBlock( );
         var claimButton = ElementByXPath("//button[contains(@class,'btn btn-primary btn-lg')]");
         if (claimButton == null)
         {
@@ -335,6 +350,7 @@ public class BonusBitcoinScript : FaucetScript
 
         CheckForPopup();
         Wait(3);
+        DoBlock( );
         //Try to dismiss the cookie banner
         ExecuteScript("if($('.cc_btn_accept_all').length > 0) { $('.cc_btn_accept_all')[0].click(); }");
 

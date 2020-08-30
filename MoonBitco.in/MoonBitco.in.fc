@@ -1,8 +1,7 @@
 using System;
-using System.Text.RegularExpressions;
 using FaucetCollector.Script;
 using OpenQA.Selenium;
-
+//css_ref FaucetCollector.Utilities
 public class MoonBitcoinScript : FaucetScript
 {
     /// <summary>
@@ -18,14 +17,23 @@ public class MoonBitcoinScript : FaucetScript
             {
                 //We have a setting to get the email address used for the coinpot account
                 new FaucetSetting() { Name = "Email", Display = "Coinpot email addres", Type = EditorType.TextBox, Required = true },
+                new FaucetSetting(){Name="Adblock",Display="Use code adblock",Type=EditorType.CheckBox,Default=true},
                 //Option to use SolveMedia or reCAPTCHA
-                   new FaucetSetting(){Name="SwitchC",Display="SwitchCaptcha is the other is not visible",Type=EditorType.CheckBox,Default=true},
+                   new FaucetSetting(){Name="SwitchC",Display="SwitchCaptcha if the other is not visible",Type=EditorType.CheckBox,Default=true},
+                    new FaucetSetting(){Name="SolveMediaRetry", Display="Do three SolveMedia attempts when failed to answer",Type=EditorType.CheckBox,Default=true},
 
                 new FaucetSetting() { Name = "UseSolveMedia", Display = "Use SolveMedia", Type = EditorType.CheckBox, Default = true }
             };
         }
     }
-
+    public FaucetCollector.Utilities.Adblock Adblock { get; set; }
+    private void DoBlock( )
+    {
+        if ( GetBoolSetting("Adblock") )
+        {
+            Adblock.DestroyAds( );
+        }
+    }
 
     /// <summary>
     /// This method gets called when the faucet is enabled and the GO button is clicked
@@ -60,12 +68,10 @@ public class MoonBitcoinScript : FaucetScript
 
 
     }
-    public override int DoInit()
+    public override int DoInit( )
     {
-     
-    
-
-        return base.DoInit();
+        Adblock=new FaucetCollector.Utilities.Adblock(this);
+        return base.DoInit( );
     }
     /// <summary>
     /// This method gets called after the Start method, here you need to return if we are logged in or not.
@@ -85,6 +91,7 @@ public class MoonBitcoinScript : FaucetScript
     /// </summary>
     public override int BeforeLogin()
     {
+        DoBlock( );
         CheckForPopup();
         //This faucet has nothing to do here. We will let Faucet Collector handle it.
         return base.BeforeLogin();
@@ -176,50 +183,55 @@ public class MoonBitcoinScript : FaucetScript
         //we are good to continue
         return base.AfterLogin();
     }
-    public int SolveCapt()
+    public void RefreshSolvemedia ( )
+    {
+        ExecuteScript ( "ACPuzzle.reload();" );
+    }
+    public int SolveCapt ( )
     {
         var XPathAdcopyRefresh = "//a[@id='adcopy-link-refresh']";
+
         int tries = 0;
         bool FirstTime = true;
-        while ((IsVisible(ElementByXPath("//input[@id='adcopy_response']|//input[@name='adcopy_response']")) && tries < 3 && !OverriteSolvemedia) || FirstTime)
+        while ( ( IsVisible ( ElementByXPath ( "//input[@id='adcopy_response']|//input[@name='adcopy_response']" ) )&&tries<3&&!OverriteSolvemedia&&GetBoolSetting ( "SolveMediaRetry" ) )||FirstTime )
         {
-            FirstTime = false;
+            FirstTime=false;
             var result = DoSolveCaptcha();
-            if (result > 0 && result != 9999)
+            if ( result>0&&result!=9999 )
             {
                 var AdcopyRefresh = ElementByXPath(XPathAdcopyRefresh);
-                if (IsVisible(AdcopyRefresh))
+                if ( IsVisible ( AdcopyRefresh ) )
                 {
-                    Click(AdcopyRefresh);
-                    Wait(2);
+                    RefreshSolvemedia ( );
+                    Wait ( 2 );
                 }
                 tries++;
                 continue;
             }
 
-            if ((Context.CaptchaResult.Result.Length <= 3 || Context.CaptchaResult.Result == "7775") && result != 9999)
+            if ( ( Context.CaptchaResult.Result.Length<=3||Context.CaptchaResult.Result=="7775" )&&result!=9999 )
             {
                 var AdcopyRefresh = ElementByXPath(XPathAdcopyRefresh);
-                if (IsVisible(AdcopyRefresh))
+                if ( IsVisible ( AdcopyRefresh ) )
                 {
-                    Click(AdcopyRefresh);
-                    Wait(3);
+                    RefreshSolvemedia ( );
+                    Wait ( 3 );
                 }
                 tries++;
 
                 continue;
             }
 
-            return result != 9999 ? result : 0;
+            return result!=9999 ? result : 0;
         }
-        if (tries >= 3 && GetBoolSetting("SwitchC"))
+        if ( tries>=3&&GetBoolSetting ( "SwitchC" ) )
         {
 
-            OverriteSolvemedia = true;
+            OverriteSolvemedia=true;
         }
 
 
-        return DoSolveCaptcha();
+        return DoSolveCaptcha ( );
     }
 
     /// <summary>
@@ -229,6 +241,7 @@ public class MoonBitcoinScript : FaucetScript
     /// </summary>
     public override int GetFaucetWaitTime()
     {
+        DoBlock( );
         Wait();
         var TimerLoader = ElementByXPath("//img[@id='TimerLoader']");
         DateTime Timeout = DateTime.Now.AddSeconds(15);
@@ -336,6 +349,7 @@ public class MoonBitcoinScript : FaucetScript
     /// </summary>
     public override int BeforeSolveFaucet()
     {
+        DoBlock( );
         CheckForPopup();
         bool IsNotInCloudFlare = CheckForCloudFlare();
         if (!IsNotInCloudFlare)
